@@ -36,7 +36,7 @@ def displayInformationDataFrame(df,showCategoricals = False, showDetailsOnCatego
     None
     """
     
-    print(f"---\nLines: {len(df.index)}\nColumns: {len(df.columns)} \n---")
+    print(f"---\nLines: {len(df.index)}\nColumns: {len(df.columns)} \nMissing value or NaN: {df.isnull().sum().sum()}\n---")
     
     # Create an empty summary DataFrame with columns for data type, column name, and unique values.
     summary_df = pd.DataFrame(columns=['Data Type', 'Column Name', 'Unique Values'])
