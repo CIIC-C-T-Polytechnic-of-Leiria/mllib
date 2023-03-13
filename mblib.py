@@ -7,10 +7,17 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import classification_report
 from sklearn.metrics import balanced_accuracy_score
-#from pprint import pprint
+import tracemalloc
+import time
+import pickle
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
 
 
-def displayInformationDataFrame(df,showCategoricals = False, showDetailsOnCategorical = False, showFullDetails = False):
+
+def display_information_dataframe(df,showCategoricals = False, showDetailsOnCategorical = False, showFullDetails = False):
     """
     Displays information about the input pandas DataFrame `df`, including the data type, column name, and unique values
     for each column. Optionally, the function can also display information about categorical columns and their one-hot encoded
@@ -91,7 +98,7 @@ def displayInformationDataFrame(df,showCategoricals = False, showDetailsOnCatego
 
 
 
-def calculateMetrics(modelName, yTrue, yPred, average='binary'):
+def calculate_metrics(modelName, yTrue, yPred, average='binary'):
     """
     Calculate and print the performance metrics of a classification model.
     
@@ -133,4 +140,131 @@ def calculateMetrics(modelName, yTrue, yPred, average='binary'):
     print(f"Balanced accuracy: {np.round(balanced_accuracy_score(yTrue, yPred)*100,2)}%")
     print(f"Classification report:\n{classification_report(yTrue, yPred)}")
     
+
+def start_measures():
+    tracemalloc.start()
+    start_time = time.time()
+    return start_time
     
+def stop_measures(start_time):
+    print("(current, peak)",tracemalloc.get_traced_memory())
+    tracemalloc.stop()
+    print("--- %s segundos ---" % (time.time() - start_time))
+
+
+
+#Functions removed from Tiago code
+#The original come from SO (https://stackoverflow.com/questions/48139899/correlation-matrix-plot-with-coefficients-on-one-side-scatterplots-on-another)
+def __corrfunc(x, y, **kws):
+    """
+    Calculates the Pearson correlation coefficient and p-value between two arrays.
+    
+    Parameters:
+    -----------
+    x: array-like
+        First array to calculate the correlation coefficient.
+    y: array-like
+        Second array to calculate the correlation coefficient.
+    **kws: keyword arguments
+        Additional arguments to pass to the matplotlib `annotate` method.
+        
+    Returns:
+    --------
+    None
+        The function adds an annotation to the current axis with the correlation coefficient 
+        and a star indicator of the level of significance of the correlation based on the p-value.
+    """
+    r, p = stats.pearsonr(x, y)
+    p_stars = ''
+    if p <= 0.05:
+        p_stars = '*'
+    if p <= 0.01:
+        p_stars = '**'
+    if p <= 0.001:
+        p_stars = '***'
+    ax = plt.gca()
+    ax.annotate('r = {:.2f} '.format(r) + p_stars, xy=(0.05, 0.9), xycoords=ax.transAxes)
+
+def __annotate_colname(x, **kws):
+    """
+    Adds an annotation to the current axis with the name of a dataframe column.
+    
+    Parameters:
+    -----------
+    x: pandas Series
+        A column of a dataframe.
+    **kws: keyword arguments
+        Additional arguments to pass to the matplotlib `annotate` method.
+        
+    Returns:
+    --------
+    None
+        The function adds an annotation to the current axis with the name of the column.
+    """
+    ax = plt.gca()
+    ax.annotate(x.name, xy=(0.05, 0.9), xycoords=ax.transAxes,fontweight='bold')
+
+def cor_matrix(df):
+    """
+    Creates a correlation matrix plot for a given dataframe.
+    
+    Parameters:
+    -----------
+    df: pandas DataFrame
+        The dataframe to create the correlation matrix plot for.
+        
+    Returns:
+    --------
+    seaborn PairGrid object
+        The function returns a seaborn PairGrid object containing the correlation matrix plot.
+    """
+    g = sns.PairGrid(df, palette=['red'])
+    # Use normal regplot as `lowess=True` doesn't provide CIs.
+    g.map_upper(sns.regplot, scatter_kws={'s':10})
+    g.map_diag(sns.distplot)
+    g.map_diag(__annotate_colname)
+    g.map_lower(sns.kdeplot, cmap='Blues_d')
+    g.map_lower(__corrfunc)
+    # Remove axis labels, as they're in the diagonals.
+    for ax in g.axes.flatten():
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+    return g
+
+
+def save_model(model, model_name): 
+    # guarda modelo no disco
+    filename = model_name + '.sav'
+    pickle.dump(model, open(filename, 'wb'))
+    
+def load_model(model_name): 
+    # carrega modelo do disco
+    model = pickle.load(open(model_name + '.sav', 'rb'))    
+    return model
+
+
+
+"""
+#Just some tests for cpu and ram bar with multiprocessing
+#not working properly
+
+import multiprocessing
+from time import sleep
+import psutil
+from tqdm import tqdm
+
+def monitor_usage():
+    with tqdm(total=100, desc='cpu%', position=1) as cpubar, tqdm(total=100, desc='ram%', position=0) as rambar:
+        cpu_process = multiprocessing.Process(target=usage, args=(cpubar,))
+        ram_process = multiprocessing.Process(target=usage, args=(rambar,))
+        cpu_process.start()
+        ram_process.start()
+        cpu_process.join()
+        ram_process.join()
+
+def usage(bar):
+    while True:
+        bar.n = psutil.cpu_percent() if bar.desc == 'cpu%' else psutil.virtual_memory().percent
+        bar.refresh()
+        sleep(0.5)
+"""
