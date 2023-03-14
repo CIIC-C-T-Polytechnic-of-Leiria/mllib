@@ -242,12 +242,6 @@ def load_model(model_name):
     model = pickle.load(open(model_name + '.sav', 'rb'))    
     return model
 
-def heatmap(df):
-    corr = df.corr()
-    plt.figure(figsize=(20, 20))
-    sns.heatmap(corr, cmap="Blues", annot=True)
-    plt.show()
-
 
 
 """
