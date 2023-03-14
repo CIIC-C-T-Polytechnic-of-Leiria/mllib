@@ -352,6 +352,112 @@ def heatmap(df,size=40):
     sns.heatmap(corr, cmap="Blues", annot=True)
     plt.show()
 
+    
+
+def metrics_graphs(history, model, model_conf = "not provided!", iou = False, y_log = False):
+    """
+    Plots training and validation metrics (accuracy, loss, and IoU) of a Keras model during training.
+
+    Parameters:
+    -----------
+    history: tf.keras.callbacks.History
+        Object returned by model.fit() containing training history.
+    model: tf.keras.Model
+        The trained machine learning model.
+    conf_modelo: str, optional (default="")
+        The configuration of the model (optional)
+    iou: bool, optional (default=False)
+        Whether to plot the IoU score or not. If True, the function plots the IoU score over the epochs.
+    y_log: bool, optional(default=False) 
+        Whether to use logarithmic scale for the y-axis on the loss plot. Defaults to False.
+    """
+    
+    if not isinstance(history, tf.keras.callbacks.History):
+        raise TypeError("The 'history' argument must be a tf.keras.callbacks.History object.")
+    if not isinstance(model, tf.keras.Model):
+        raise TypeError("The 'model' argument must be a tf.keras.Model object.")
+    if not isinstance(model_conf, str):
+        raise TypeError("The 'model_conf' argument must be a string.")
+        
+    plt.style.use('fast') 
+
+    fig, (ax1, ax2) = plt.subplots(1, 2,figsize=(20,8))
+    
+    if iou:
+        if 'iou_score' not in history.history or 'val_iou_score' not in history.history:
+            raise ValueError("IoU score not found in the history object.")
+        
+        ax1.plot(np.array(history.history['iou_score']) * 100, "limegreen", marker=".")
+        ax1.plot(np.array(history.history['val_iou_score']) * 100, "orangered", marker=".")
+        ax1.set_title('Intersection over Union (IoU) of ' + model.name + '\n' + "Configuration: " + model_conf)
+        ax1.set_ylabel('IoU (%)')
+        ax1.set_xlabel('Epoch')
+        ax1.legend(['train', 'validation'], loc='best')
+        ax1.grid(linestyle='--', linewidth=0.4)
+        
+        # Creates box indicating maximum validation IoU
+        xmax = np.argmax(history.history['val_iou_score'])
+        ymax = max(history.history['val_iou_score']) * 100
+        text = "IoU Val.:{:.3f} %".format(ymax)
+        bbox_props = dict(boxstyle="round,pad=0.3", fc="w", ec="k", lw=0.5)   
+        arrowprops1 = dict(arrowstyle="->",connectionstyle="arc3,rad=0.3")
+        kw = dict(xycoords='data',textcoords="offset points",
+                  arrowprops=arrowprops1, bbox=bbox_props, ha="right", va="center")
+        ax1.annotate(text, xy=(xmax, ymax), xytext=(-15,-30), **kw)
+        ax1.set_ylim(top=max(history.history['val_iou_score'] + 
+                             history.history['iou_score']) * 100 + 1)
+    else:
+        if 'accuracy' not in history.history or 'val_accuracy' not in history.history:
+            raise ValueError("Accuracy not found in the history object.")
+        
+        
+        ax1.plot(np.array(history.history['accuracy'])*100,"limegreen",  marker =".")
+        ax1.plot(np.array(history.history['val_accuracy'])*100, "orangered" ,  marker =".")
+        ax1.set_title('Accuracy of ' + model.name + '\n' + "Configuration: " + model_conf)
+        ax1.set_ylabel('Accuracy (%)')
+        ax1.set_xlabel('Epoch')
+        ax1.legend(['train', 'validation'], loc='best')
+        ax1.grid(linestyle='--', linewidth=0.4)
+
+        # Creates box indicating maximum validation accuracy
+        xmax = np.argmax(history.history['val_accuracy'])
+        ymax = max(history.history['val_accuracy'])*100
+        text= "Acur. Val.:{:.3f} %".format(ymax)
+        # lw, linewidth; fc, facebolor; ec, edgecolor
+        bbox_props = dict(boxstyle="round,pad=0.3", fc="w", ec="k", lw=0.5)   
+        arrowprops1 = dict(arrowstyle="->",connectionstyle="arc3,rad=0.3")
+        kw = dict(xycoords='data',textcoords="offset points",
+                  arrowprops=arrowprops1, bbox=bbox_props, ha="right", va="center")
+        ax1.annotate(text, xy=(xmax, ymax), xytext=(-15,-30), **kw)
+        ax1.set_ylim(top = max(history.history['val_accuracy'] + 
+                               history.history['accuracy'])*100 + 1)  
+    
+        # Plots Cost Graph
+        ax2.plot(history.history['loss'], "limegreen",  marker =".")
+        ax2.plot(history.history['val_loss'],"orangered" ,  marker =".")
+        ax2.set_title('Cost of '+ model.name +'\n'+ "Configuration: " + model_conf)
+        ax2.set_ylabel('Cost')
+        ax2.set_xlabel('Epoch')
+        ax2.legend(['train', 'validation'], loc='best')
+        ax2.grid(linestyle = '--', linewidth = 0.5)
+        ax2.set_ylim(ymin=0)
+        if y_log == True:
+            ax2.set_yscale('log')
+            ax2.set_ylim(None)
+        
+        # Creates box indicating minimum validation cost value
+        xmin = np.argmin(history.history['val_loss'])
+        ymin = min(history.history['val_loss'])
+        text2= "Val. Cost:{:.3f}".format(ymin)
+        bbox_props2 = dict(boxstyle="round,pad=0.3", fc="w", ec="k", lw = 0.5)
+        arrowprops2 = dict(arrowstyle="->",connectionstyle="arc3,rad=-0.3")
+        kw2 = dict(xycoords='data',textcoords="offset points",
+                   arrowprops=arrowprops2, bbox=bbox_props2, ha="right", va="center")
+        ax2.annotate(text2, xy=(xmin, ymin), xytext=(70, 35), **kw2)
+        
+        plt.tight_layout()
+
+
 """
 #Just some tests for cpu and ram bar with multiprocessing
 #not working properly
@@ -376,3 +482,4 @@ def usage(bar):
         bar.refresh()
         sleep(0.5)
 """
+
