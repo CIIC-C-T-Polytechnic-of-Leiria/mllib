@@ -242,7 +242,11 @@ def load_model(model_name):
     model = pickle.load(open(model_name + '.sav', 'rb'))    
     return model
 
-
+def heatmap(df):
+    corr = df.corr().round(2)
+    plt.figure(figsize=(40, 40))
+    sns.heatmap(corr, cmap="Blues", annot=True)
+    plt.show()
 
 """
 #Just some tests for cpu and ram bar with multiprocessing
