@@ -232,16 +232,35 @@ def cor_matrix(df):
     return g
 
 
-def save_model(model, model_name): 
-    # guarda modelo no disco
-    filename = model_name + '.sav'
-    pickle.dump(model, open(filename, 'wb'))
+def save_model(model: object, model_name: str) -> None:
+    """Saves a trained model to disk as a serialized object.
     
-def load_model(model_name): 
-    # carrega modelo do disco
-    model = pickle.load(open(model_name + '.sav', 'rb'))    
-    return model
-
+    Args:
+        model: A trained machine learning model.
+        model_name: Name of the model file to be saved.
+    """
+    filename = model_name + '.sav'
+    with open(filename, 'wb') as f:
+        pickle.dump(model, f)
+    
+def load_model(model_name: str) -> object:
+    """Loads a serialized model from disk.
+    
+    Args:
+        model_name: Name of the model file to be loaded.
+        
+    Returns:
+        A Python object representing the loaded model.  
+    Raises:
+        FileNotFoundError: If the specified model file does not exist.
+    """
+    try:
+        with open(model_name + '.sav', 'rb') as f:
+            model = pickle.load(f)
+            return model
+    except FileNotFoundError:
+        print(f"Could not find model file {model_name}.sav")
+        return None
 
 
 """
