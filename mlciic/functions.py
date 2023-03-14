@@ -10,12 +10,11 @@ from sklearn.metrics import balanced_accuracy_score
 import tracemalloc
 import time
 import pickle
+import os
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-
-
 
 def display_information_dataframe(df,showCategoricals = False, showDetailsOnCategorical = False, showFullDetails = False):
     """
@@ -96,9 +95,6 @@ def display_information_dataframe(df,showCategoricals = False, showDetailsOnCate
     # Display the summary DataFrame.
     return display(summary_df)
 
-
-
-
 def calculate_metrics(modelName, yTrue, yPred, average='binary'):
     """
     Calculate and print the performance metrics of a classification model.
@@ -111,9 +107,6 @@ def calculate_metrics(modelName, yTrue, yPred, average='binary'):
         {'micro', 'macro', 'weighted', 'binary'} or None (default: 'binary'). If None, only binary 
         classification metrics will be computed.
     
-    Returns:
-    None
-    
     Raises:
     ValueError: If `average` is not one of {'micro', 'macro', 'weighted', 'binary'} or None.
     
@@ -123,13 +116,13 @@ def calculate_metrics(modelName, yTrue, yPred, average='binary'):
         print("Average must be one of this options: {‘micro’, ‘macro’, ‘samples’, ‘weighted’, ‘binary’} or None, default=’binary’")
         return
     
-    # Print the name of the model and calculate accuracy and precision
+    # Prints the name of the model and calculate accuracy and precision
     print(f"--- Performance of {modelName} ---")
     acc = accuracy_score(y_true = yTrue, y_pred = yPred)
     precision = precision_score(y_true = yTrue, y_pred = yPred, average = average)
     print(f'Accuracy : {np.round(acc*100,2)}%\nPrecision: {np.round(precision*100,2)}%')
     
-    # Calculate and print recall and F1-score
+    # Calculates and print recall and F1-score
     f1 = f1_score(y_true = yTrue, y_pred = yPred, average = average)
     recall = recall_score(y_true = yTrue, y_pred = yPred, average = average)
     print(f'Recall: {np.round(recall*100,2)}%\nF1-score: {np.round(f1*100,2)}%')
@@ -137,25 +130,74 @@ def calculate_metrics(modelName, yTrue, yPred, average='binary'):
     #auc_sklearn = roc_auc_score(y_true = yTrue, y_score = yPred, average = average)
     #print(f'Roc auc: {np.round(auc_sklearn*100,2)}%')
     
-    # Calculate and print balanced accuracy and classification report
+    # Calculates and prints balanced accuracy and classification report
     print(f"Balanced accuracy: {np.round(balanced_accuracy_score(yTrue, yPred)*100,2)}%")
     print(f"Classification report:\n{classification_report(yTrue, yPred)}")
     
+# -----------------------------------------------------------------------------
+# def start_measures():
+#     tracemalloc.start()
+#     start_time = time.time()
+#     return start_time
+
+# def stop_measures(start_time):
+#     print("(current, peak)",tracemalloc.get_traced_memory())
+#     tracemalloc.stop()
+#     print("--- %s segundos ---" % (time.time() - start_time))
+
+# -----------------------------------------------------------------------------
 
 def start_measures():
-    tracemalloc.start()
-    start_time = time.time()
-    return start_time
+    """
+    Starts the memory and time measures
     
-def stop_measures(start_time):
-    print("(current, peak)",tracemalloc.get_traced_memory())
-    tracemalloc.stop()
-    print("--- %s segundos ---" % (time.time() - start_time))
+    Returns:
+    --------
+    start_time: float
+        The start time of the measurements
+    tracemalloc_obj: tracemalloc.TraceMalloc
+        The `tracemalloc` object that is used for measuring memory usage
+    """
+    try:
+        tracemalloc_obj = tracemalloc.start()
+        start_time = time.time()
+    except Exception as e:
+        print(f"An error occurred while starting memory and time measures: {e}")
+        return None, None
+    
+    return start_time, tracemalloc_obj
+
+def stop_measures(start_time, tracemalloc_obj):
+    """
+    Stops the memory and time measures
+    
+    Parameters:
+    -----------
+    start_time: float
+        The start time of the measurements
+    tracemalloc_obj: tracemalloc.TraceMalloc
+        The `tracemalloc` object that is used for measuring memory usage
+    
+    Returns:
+    --------
+    memory_usage: tuple(int, int)
+        A tuple containing the current and peak memory usage in bytes
+    elapsed_time: float
+        The elapsed time in seconds
+    """
+    try:
+        memory_usage = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        elapsed_time = time.time() - start_time
+    except Exception as e:
+        print(f"An error occurred while stopping memory and time measures: {e}")
+        return None, None
+    
+    print("(current, peak)", memory_usage)
+    print("--- {:.2f} segundos ---".format(elapsed_time))
+    return memory_usage, elapsed_time
 
 
-
-#Functions removed from Tiago code
-#The original come from SO (https://stackoverflow.com/questions/48139899/correlation-matrix-plot-with-coefficients-on-one-side-scatterplots-on-another)
 def __corrfunc(x, y, **kws):
     """
     Calculates the Pearson correlation coefficient and p-value between two arrays.
@@ -233,15 +275,76 @@ def cor_matrix(df):
     return g
 
 
-def save_model(model, model_name): 
-    # guarda modelo no disco
-    filename = model_name + '.sav'
-    pickle.dump(model, open(filename, 'wb'))
+def save_model(model, model_name, directory='./models', overwrite=False):
+    """
+    Save a trained machine learning model to disk.´
+
+    Parameters:
+    -----------
+        model (object): The trained model object.
+        model_name (str): The name to use when saving the model.
+        directory (str): The directory where the model will be saved. Default is './models'.
+        overwrite (bool): Whether to overwrite an existing model with the same name. Default is False.
+
+    Raises:
+        ValueError: If overwrite is False and a file with the same name already exists in the directory.
+
+    """
+
+    # Create directory if it doesn't exist
+    os.makedirs(directory, exist_ok=True)
+
+    # Check if file already exists
+    filename = os.path.join(directory, model_name + '.sav')
+    if os.path.exists(filename) and not overwrite:
+        raise ValueError(f"A file with the name '{model_name}.sav' already exists in the '{directory}' directory.")
+
+    # Save the model to disk
+    with open(filename, 'wb') as f:
+        pickle.dump(model, f)
+
+    print(f"Model saved as '{model_name}.sav' in the '{directory}' directory.")
+
+#--------------------------------------------------------------
+
+# def save_model(model, model_name): 
+#     # guarda modelo no disco
+#     filename = model_name + '.sav'
+#     pickle.dump(model, open(filename, 'wb'))
+
+
+# def load_model(model_name): 
+#     # carrega modelo do disco
+#     model = pickle.load(open(model_name + '.sav', 'rb'))    
+#     return model
+
+#--------------------------------------------------------------
     
-def load_model(model_name): 
-    # carrega modelo do disco
-    model = pickle.load(open(model_name + '.sav', 'rb'))    
+def load_model(model_name):
+    """
+    Loads a machine learning model from disk.
+
+    Args:
+    - model_name (str): The name of the model to be loaded.
+
+    Returns:
+    - model: The loaded machine learning model.
+    """
+    # check if the model file exists
+    filename = model_name + '.sav'
+    if not os.path.isfile(filename):
+        raise FileNotFoundError(f"Model file {filename} not found.")
+
+    # load the model from disk
+    with open(filename, 'rb') as file:
+        model = pickle.load(file)
+
     return model
+
+# def load_model(model_name): 
+#     # carrega modelo do disco
+#     model = pickle.load(open(model_name + '.sav', 'rb'))    
+#     return model
 
 def heatmap(df,size=40):
     corr = df.corr().round(2)
