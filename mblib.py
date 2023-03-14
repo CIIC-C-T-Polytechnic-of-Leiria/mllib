@@ -146,10 +146,30 @@ def start_measures():
     start_time = time.time()
     return start_time
     
-def stop_measures(start_time):
-    print("(current, peak)",tracemalloc.get_traced_memory())
-    tracemalloc.stop()
-    print("--- %s segundos ---" % (time.time() - start_time))
+#def stop_measures(start_time):
+#    print("(current, peak)",tracemalloc.get_traced_memory())
+#    tracemalloc.stop()
+#    print("--- %s segundos ---" % (time.time() - start_time))
+    
+
+def stop_measures(start_time: float) -> str:
+    """Stops tracing memory allocation and measures elapsed time since start.
+    
+    Args:
+        start_time: The timestamp when the tracing started.
+        
+    Returns:
+        A string indicating the elapsed time in a readable format.
+    """
+    if tracemalloc.is_tracing():
+        print("(current, peak)", tracemalloc.get_traced_memory())
+        tracemalloc.stop()
+    
+    elapsed_time = time.time() - start_time
+    time_str = str(timedelta(seconds=elapsed_time))
+    print(f"Elapsed time: {time_str} seconds")
+    return time_str
+
 
 
 
