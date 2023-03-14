@@ -88,6 +88,7 @@ def display_information_dataframe(df,showCategoricals = False, showDetailsOnCate
                     print(colunas_one_hot[coluna]["uniques"])
                     print("")
             else:
+                
                 print(coluna + ": ")
                 print(colunas_one_hot[coluna]["uniques"])
                 print("")
