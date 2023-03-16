@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 
+#corrigir o erro '-'
 def display_information_dataframe(df,showCategoricals = False, showDetailsOnCategorical = False, showFullDetails = False):
     """
     Displays information about the input pandas DataFrame `df`, including the data type, column name, and unique values
@@ -65,8 +66,8 @@ def display_information_dataframe(df,showCategoricals = False, showDetailsOnCate
     # Identify any columns in `df` with a data type of `object` (i.e., categorical columns) and store their names in a list.
     categorical_columns = []
     for col in df.columns[df.dtypes == object]:
-        if col != "Attack_type":
-            categorical_columns.append(col)
+        #if col != "Attack_type":
+        categorical_columns.append(col)
     
     # If `showCategoricals` is True, display a list of the names of all categorical columns in `df`.
     if showCategoricals:
@@ -186,8 +187,8 @@ def stop_measures(start_time, tracemalloc_obj):
         The elapsed time in seconds
     """
     try:
-        memory_usage = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
+        memory_usage = tracemalloc_obj.get_traced_memory()
+        tracemalloc_obj.stop()
         elapsed_time = time.time() - start_time
     except Exception as e:
         print(f"An error occurred while stopping memory and time measures: {e}")
@@ -346,11 +347,40 @@ def load_model(model_name):
 #     model = pickle.load(open(model_name + '.sav', 'rb'))    
 #     return model
 
-def heatmap(df,size=40):
+def heatmap(df: pd.DataFrame, size: int = 40, save_path: str = None): #-> pd.DataFrame:
+    """
+    Generate a heatmap of the correlation matrix for a given dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The input dataframe.
+    size : int, optional
+        The size of the plot in inches (default is 40).
+    save_path : str, optional
+        The path to save the heatmap image. If not provided, the image is not saved.
+
+    Returns
+    -------
+    pd.DataFrame
+        The correlation matrix for the input dataframe.
+    """
+
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input must be a pandas dataframe.")
+
     corr = df.corr().round(2)
+
     plt.figure(figsize=(size, size))
-    sns.heatmap(corr, cmap="Blues", annot=True)
+    sns.heatmap(corr, annot=True)
+    plt.title("Correlation Matrix Heatmap")
+
+    if save_path is not None:
+        plt.savefig(save_path)
+
     plt.show()
+
+    return corr
 
     
 
@@ -481,5 +511,53 @@ def usage(bar):
         bar.n = psutil.cpu_percent() if bar.desc == 'cpu%' else psutil.virtual_memory().percent
         bar.refresh()
         sleep(0.5)
+        
+        
+        
+def categorical_get_dummies(df: pd.DataFrame, categorical_columns = []):
+    colunas_one_hot = {}
+    for coluna in categorical_columns:
+        codes, uniques = pd.factorize(df[coluna].unique())
+        colunas_one_hot[coluna] = {"uniques": uniques, "codes":codes}
+        df[coluna] = df[coluna].replace(colunas_one_hot[coluna]["uniques"], colunas_one_hot[coluna]["codes"])
+        print(coluna)
+    df = pd.get_dummies(data=df, columns=categorical_columns)
 """
+
+
+def categorical_get_dummies(df: pd.DataFrame, categorical_columns: list): #-> pd.DataFrame:
+    """
+    One-hot encode the categorical columns of a dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The input dataframe.
+    categorical_columns : list
+        A list of the categorical column names.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe with the categorical columns one-hot encoded.
+    dict
+        A dictionary with the unique values and codes for each categorical column.
+    """
+
+    # Check input types
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input 'df' must be a pandas DataFrame.")
+    if not isinstance(categorical_columns, list):
+        raise TypeError("Input 'categorical_columns' must be a list of column names.")
+
+    # Create dictionary of unique values and codes for each categorical column
+    colunas_one_hot = {coluna: {"uniques": df[coluna].unique(), "codes": pd.factorize(df[coluna].unique())[0]} 
+                       for coluna in categorical_columns}
+
+    # Replace categorical values with codes and one-hot encode the columns
+    for coluna in categorical_columns:
+        df[coluna] = df[coluna].replace(colunas_one_hot[coluna]["uniques"], colunas_one_hot[coluna]["codes"])
+    df = pd.get_dummies(data=df, columns=categorical_columns)
+
+    return df, colunas_one_hot
 
