@@ -94,7 +94,11 @@ def display_information_dataframe(df,showCategoricals = False, showDetailsOnCate
                 print("")
 
     # Display the summary DataFrame.
-    return display(summary_df)
+    try:
+        return display(summary_df)
+    except:
+        print(summary_df)
+    
 
 def calculate_metrics(modelName, yTrue, yPred, average='binary'):
     """
@@ -515,4 +519,35 @@ def categorical_get_dummies(df: pd.DataFrame, categorical_columns: list): #-> pd
     df = pd.get_dummies(data=df, columns=categorical_columns)
 
     return df, colunas_one_hot
+
+
+def encode_labels(df: pd.DataFrame, label: str) -> pd.DataFrame:
+    """
+    Encodes the labels in a DataFrame using LabelEncoder.
+
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The DataFrame containing the label column to be encoded.
+    label : str
+        The name of the column containing the labels to be encoded.
+
+    Returns:
+    --------
+    pandas DataFrame
+        The original DataFrame with the label column encoded.
+    LabelEncoder
+        The fitted LabelEncoder object.
+    """
+
+    # Importing the LabelEncoder class from the scikit-learn library
+    from sklearn.preprocessing import LabelEncoder
+    
+    le = LabelEncoder()
+    le.fit(df[label].values)
+    
+    # Encoding the label column using the fitted LabelEncoder
+    df[label] = le.transform(df[label].values)
+    # Returning the DataFrame with the encoded label column
+    return df, le
 
