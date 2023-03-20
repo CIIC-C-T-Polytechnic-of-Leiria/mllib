@@ -3,6 +3,7 @@ from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from mlciic import functions
 
 def beforeModel(df: pd.DataFrame, drop_columns: list,label: str, one_hot_encoder = True, label_encoder = True, valid_indices = False, test_size = 0.2, standard_scaler = True, smote = True, random_state = 1):
     """
@@ -30,8 +31,6 @@ def beforeModel(df: pd.DataFrame, drop_columns: list,label: str, one_hot_encoder
     le (LabelEncoder): Label encoder object.
     """
     
-    from mlciic import functions
-    
     # Check input types
     if not isinstance(df, pd.DataFrame):
         raise TypeError("Input 'df' must be a pandas DataFrame.")
@@ -45,14 +44,18 @@ def beforeModel(df: pd.DataFrame, drop_columns: list,label: str, one_hot_encoder
     df.drop_duplicates(subset=None, keep="first", inplace=True)
     df = shuffle(df)
     
-    categorical_columns = [col for col in df.columns if df[col].dtype == 'object' and col != label]
-    features = [ col for col in df.columns if col not in [label]] 
+    categorical_columns = []
+    for col in df.columns[df.dtypes == object]:
+        if col != label:
+            categorical_columns.append(col)
+    features = [ col for col in df.columns if col not in [label]]
     
     if one_hot_encoder:
         df, colunas_one_hot = functions.categorical_get_dummies(df, categorical_columns)
+        features = [ col for col in df.columns if col not in [label]] 
     
-    #if label_encoder:
-        #df, le = functions.encode_labels(df, label)
+    if label_encoder:
+        df, le = functions.encode_labels(df, label)
     
     n_total = len(df)
     train_val_indices, test_indices = train_test_split(range(n_total), test_size=test_size, random_state=random_state)
@@ -86,24 +89,11 @@ def beforeModel(df: pd.DataFrame, drop_columns: list,label: str, one_hot_encoder
         sm = SMOTE(random_state=random_state,n_jobs=-1)
         X_train, y_train = sm.fit_resample(X_train, y_train)
     
-    if 'X_valid' in locals() and 'le' in locals():
-        return X_train, y_train, X_test, y_test, X_valid, y_valid, le
+    results = (X_train, y_train, X_test, y_test)
     if 'X_valid' in locals():
-        return X_train, y_train, X_test, y_test, X_valid, y_valid
+        results += (X_valid, y_valid)
     if 'le' in locals():
-        return X_train, y_train, X_test, y_test, le
-    
-    return X_train, y_train, X_test, y_test
-    
-    
-    
-df = pd.read_csv('dataset.csv', low_memory=False)
+        results += (le,)
 
-drop_columns = ["frame.time", "ip.src_host", "ip.dst_host", "arp.src.proto_ipv4","arp.dst.proto_ipv4", 
-         "http.file_data","http.request.full_uri","icmp.transmit_timestamp",
-         "http.request.uri.query", "tcp.options","tcp.payload","tcp.srcport",
-         "tcp.dstport", "udp.port", "mqtt.msg"]
-
-X_train, y_train, X_test, y_test, X_valid, y_valid, le = beforeModel(df= df,drop_columns = drop_columns, label = "Attack_type", one_hot_encoder = True, label_encoder = True, valid_indices = False, test_size = 0.2, standard_scaler = True, smote = True, random_state = 1)
-
-  
+    return results
+    
