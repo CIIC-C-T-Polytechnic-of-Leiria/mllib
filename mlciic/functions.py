@@ -152,6 +152,37 @@ def calculate_metrics(modelName, yTrue, yPred, average='binary'):
 
 # -----------------------------------------------------------------------------
 
+#------------------------------------------------------------------------------
+#---- TIME AND MEMORY MEASURES
+#------------------------------------------------------------------------------
+# Obs: Create an utils file and put this kind of functions there ?
+
+def timing_decorator(func):
+    """
+    A decorator that times how long a function takes to run and prints the result.
+
+    Args:
+        func: The function to be timed.
+
+    Returns:
+        The result of calling the function.
+
+    Example usage:
+        @timing_decorator
+        def my_function():
+            # do some work
+            return result
+    """
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"Function {func.__name__} took {end_time - start_time} seconds to run.")
+        return result
+
+    return wrapper
+
+
 def start_measures():
     """
     Starts the memory and time measures
@@ -550,4 +581,6 @@ def encode_labels(df: pd.DataFrame, label: str) -> pd.DataFrame:
     df[label] = le.transform(df[label].values)
     # Returning the DataFrame with the encoded label column
     return df, le
+
+import time
 
