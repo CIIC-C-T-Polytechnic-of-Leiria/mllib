@@ -547,7 +547,7 @@ def apply_smotenc_bigdata(df: pd.DataFrame, label: str, categorical_indices: lis
     print(f"Started SMOTENC; size of df - {df.size} ")
     
     # Apply the SMOTENC algorithm to oversample the dataset
-    smote_nc = SMOTENC(categorical_features=categorical_indices, random_state=random_state,sampling_strategy="minority")
+    smote_nc = SMOTENC(categorical_features=categorical_indices, random_state=random_state, sampling_strategy="minority")
 
     for labels in np.unique(y_resampled):
         X_resampled, y_resampled = smote_nc.fit_resample(X_resampled, y_resampled)
