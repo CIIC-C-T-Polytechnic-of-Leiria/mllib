@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 setup(
     name='mlciic',
     packages=find_packages(),
-    version='0.1.0',
+    version='0.2.0',
     description='Library to help with machine learning projects at CIIC C&T',
     author='CIIC C&T',
     license='MIT',
