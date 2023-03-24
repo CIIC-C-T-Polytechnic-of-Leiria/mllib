@@ -1,12 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import f1_score
-from sklearn.metrics import classification_report
-from sklearn.metrics import balanced_accuracy_score
 import tracemalloc
 import time
 import pickle
@@ -16,6 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 
+#corrigir o erro '-'
 def display_information_dataframe(df,showCategoricals = False, showDetailsOnCategorical = False, showFullDetails = False):
     """
     Displays information about the input pandas DataFrame `df`, including the data type, column name, and unique values
@@ -65,8 +59,8 @@ def display_information_dataframe(df,showCategoricals = False, showDetailsOnCate
     # Identify any columns in `df` with a data type of `object` (i.e., categorical columns) and store their names in a list.
     categorical_columns = []
     for col in df.columns[df.dtypes == object]:
-        if col != "Attack_type":
-            categorical_columns.append(col)
+        #if col != "Attack_type":
+        categorical_columns.append(col)
     
     # If `showCategoricals` is True, display a list of the names of all categorical columns in `df`.
     if showCategoricals:
@@ -93,47 +87,12 @@ def display_information_dataframe(df,showCategoricals = False, showDetailsOnCate
                 print("")
 
     # Display the summary DataFrame.
-    return display(summary_df)
+    try:
+        return display(summary_df)
+    except:
+        print(summary_df)
+    
 
-def calculate_metrics(modelName, yTrue, yPred, average='binary'):
-    """
-    Calculate and print the performance metrics of a classification model.
-    
-    Parameters:
-    modelName (str): The name of the classification model.
-    yTrue (array-like): The true labels.
-    yPred (array-like): The predicted labels.
-    average (str or None, optional): The averaging method to use for multi-class classification. One of 
-        {'micro', 'macro', 'weighted', 'binary'} or None (default: 'binary'). If None, only binary 
-        classification metrics will be computed.
-    
-    Raises:
-    ValueError: If `average` is not one of {'micro', 'macro', 'weighted', 'binary'} or None.
-    
-    """
-    # Check if average parameter is valid
-    if average != 'micro' and average != 'macro' and average != 'weighted' and average != 'binary' and average != None:
-        print("Average must be one of this options: {‘micro’, ‘macro’, ‘samples’, ‘weighted’, ‘binary’} or None, default=’binary’")
-        return
-    
-    # Prints the name of the model and calculate accuracy and precision
-    print(f"--- Performance of {modelName} ---")
-    acc = accuracy_score(y_true = yTrue, y_pred = yPred)
-    precision = precision_score(y_true = yTrue, y_pred = yPred, average = average)
-    print(f'Accuracy : {np.round(acc*100,2)}%\nPrecision: {np.round(precision*100,2)}%')
-    
-    # Calculates and print recall and F1-score
-    f1 = f1_score(y_true = yTrue, y_pred = yPred, average = average)
-    recall = recall_score(y_true = yTrue, y_pred = yPred, average = average)
-    print(f'Recall: {np.round(recall*100,2)}%\nF1-score: {np.round(f1*100,2)}%')
-    
-    #auc_sklearn = roc_auc_score(y_true = yTrue, y_score = yPred, average = average)
-    #print(f'Roc auc: {np.round(auc_sklearn*100,2)}%')
-    
-    # Calculates and prints balanced accuracy and classification report
-    print(f"Balanced accuracy: {np.round(balanced_accuracy_score(yTrue, yPred)*100,2)}%")
-    print(f"Classification report:\n{classification_report(yTrue, yPred)}")
-    
 # -----------------------------------------------------------------------------
 # def start_measures():
 #     tracemalloc.start()
@@ -147,6 +106,37 @@ def calculate_metrics(modelName, yTrue, yPred, average='binary'):
 
 # -----------------------------------------------------------------------------
 
+#------------------------------------------------------------------------------
+#---- TIME AND MEMORY MEASURES
+#------------------------------------------------------------------------------
+# Obs: Create an utils file and put this kind of functions there ?
+
+def timing_decorator(func):
+    """
+    A decorator that times how long a function takes to run and prints the result.
+
+    Args:
+        func: The function to be timed.
+
+    Returns:
+        The result of calling the function.
+
+    Example usage:
+        @timing_decorator
+        def my_function():
+            # do some work
+            return result
+    """
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"Function {func.__name__} took {end_time - start_time} seconds to run.")
+        return result
+
+    return wrapper
+
+
 def start_measures():
     """
     Starts the memory and time measures
@@ -155,8 +145,6 @@ def start_measures():
     --------
     start_time: float
         The start time of the measurements
-    tracemalloc_obj: tracemalloc.TraceMalloc
-        The `tracemalloc` object that is used for measuring memory usage
     """
     try:
         tracemalloc_obj = tracemalloc.start()
@@ -165,9 +153,9 @@ def start_measures():
         print(f"An error occurred while starting memory and time measures: {e}")
         return None, None
     
-    return start_time, tracemalloc_obj
+    return start_time
 
-def stop_measures(start_time, tracemalloc_obj):
+def stop_measures(start_time):
     """
     Stops the memory and time measures
     
@@ -175,8 +163,6 @@ def stop_measures(start_time, tracemalloc_obj):
     -----------
     start_time: float
         The start time of the measurements
-    tracemalloc_obj: tracemalloc.TraceMalloc
-        The `tracemalloc` object that is used for measuring memory usage
     
     Returns:
     --------
@@ -193,8 +179,10 @@ def stop_measures(start_time, tracemalloc_obj):
         print(f"An error occurred while stopping memory and time measures: {e}")
         return None, None
     
+    print("----- Time and memory usage -----")
     print("(current, peak)", memory_usage)
     print("--- {:.2f} segundos ---".format(elapsed_time))
+    print("------------------------------------")
     return memory_usage, elapsed_time
 
 
@@ -346,117 +334,40 @@ def load_model(model_name):
 #     model = pickle.load(open(model_name + '.sav', 'rb'))    
 #     return model
 
-def heatmap(df,size=40):
+def heatmap(df: pd.DataFrame, size: int = 40, save_path: str = None): #-> pd.DataFrame:
+    """
+    Generate a heatmap of the correlation matrix for a given dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The input dataframe.
+    size : int, optional
+        The size of the plot in inches (default is 40).
+    save_path : str, optional
+        The path to save the heatmap image. If not provided, the image is not saved.
+
+    Returns
+    -------
+    pd.DataFrame
+        The correlation matrix for the input dataframe.
+    """
+
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input must be a pandas dataframe.")
+
     corr = df.corr().round(2)
+
     plt.figure(figsize=(size, size))
-    sns.heatmap(corr, cmap="Blues", annot=True)
+    sns.heatmap(corr, annot=True)
+    plt.title("Correlation Matrix Heatmap")
+
+    if save_path is not None:
+        plt.savefig(save_path)
+
     plt.show()
 
-    
-
-def metrics_graphs(history, model, model_conf = "not provided!", iou = False, y_log = False):
-    """
-    Plots training and validation metrics (accuracy, loss, and IoU) of a Keras model during training.
-
-    Parameters:
-    -----------
-    history: tf.keras.callbacks.History
-        Object returned by model.fit() containing training history.
-    model: tf.keras.Model
-        The trained machine learning model.
-    conf_modelo: str, optional (default="")
-        The configuration of the model (optional)
-    iou: bool, optional (default=False)
-        Whether to plot the IoU score or not. If True, the function plots the IoU score over the epochs.
-    y_log: bool, optional(default=False) 
-        Whether to use logarithmic scale for the y-axis on the loss plot. Defaults to False.
-    """
-    
-    if not isinstance(history, tf.keras.callbacks.History):
-        raise TypeError("The 'history' argument must be a tf.keras.callbacks.History object.")
-    if not isinstance(model, tf.keras.Model):
-        raise TypeError("The 'model' argument must be a tf.keras.Model object.")
-    if not isinstance(model_conf, str):
-        raise TypeError("The 'model_conf' argument must be a string.")
-        
-    plt.style.use('fast') 
-
-    fig, (ax1, ax2) = plt.subplots(1, 2,figsize=(20,8))
-    
-    if iou:
-        if 'iou_score' not in history.history or 'val_iou_score' not in history.history:
-            raise ValueError("IoU score not found in the history object.")
-        
-        ax1.plot(np.array(history.history['iou_score']) * 100, "limegreen", marker=".")
-        ax1.plot(np.array(history.history['val_iou_score']) * 100, "orangered", marker=".")
-        ax1.set_title('Intersection over Union (IoU) of ' + model.name + '\n' + "Configuration: " + model_conf)
-        ax1.set_ylabel('IoU (%)')
-        ax1.set_xlabel('Epoch')
-        ax1.legend(['train', 'validation'], loc='best')
-        ax1.grid(linestyle='--', linewidth=0.4)
-        
-        # Creates box indicating maximum validation IoU
-        xmax = np.argmax(history.history['val_iou_score'])
-        ymax = max(history.history['val_iou_score']) * 100
-        text = "IoU Val.:{:.3f} %".format(ymax)
-        bbox_props = dict(boxstyle="round,pad=0.3", fc="w", ec="k", lw=0.5)   
-        arrowprops1 = dict(arrowstyle="->",connectionstyle="arc3,rad=0.3")
-        kw = dict(xycoords='data',textcoords="offset points",
-                  arrowprops=arrowprops1, bbox=bbox_props, ha="right", va="center")
-        ax1.annotate(text, xy=(xmax, ymax), xytext=(-15,-30), **kw)
-        ax1.set_ylim(top=max(history.history['val_iou_score'] + 
-                             history.history['iou_score']) * 100 + 1)
-    else:
-        if 'accuracy' not in history.history or 'val_accuracy' not in history.history:
-            raise ValueError("Accuracy not found in the history object.")
-        
-        
-        ax1.plot(np.array(history.history['accuracy'])*100,"limegreen",  marker =".")
-        ax1.plot(np.array(history.history['val_accuracy'])*100, "orangered" ,  marker =".")
-        ax1.set_title('Accuracy of ' + model.name + '\n' + "Configuration: " + model_conf)
-        ax1.set_ylabel('Accuracy (%)')
-        ax1.set_xlabel('Epoch')
-        ax1.legend(['train', 'validation'], loc='best')
-        ax1.grid(linestyle='--', linewidth=0.4)
-
-        # Creates box indicating maximum validation accuracy
-        xmax = np.argmax(history.history['val_accuracy'])
-        ymax = max(history.history['val_accuracy'])*100
-        text= "Acur. Val.:{:.3f} %".format(ymax)
-        # lw, linewidth; fc, facebolor; ec, edgecolor
-        bbox_props = dict(boxstyle="round,pad=0.3", fc="w", ec="k", lw=0.5)   
-        arrowprops1 = dict(arrowstyle="->",connectionstyle="arc3,rad=0.3")
-        kw = dict(xycoords='data',textcoords="offset points",
-                  arrowprops=arrowprops1, bbox=bbox_props, ha="right", va="center")
-        ax1.annotate(text, xy=(xmax, ymax), xytext=(-15,-30), **kw)
-        ax1.set_ylim(top = max(history.history['val_accuracy'] + 
-                               history.history['accuracy'])*100 + 1)  
-    
-        # Plots Cost Graph
-        ax2.plot(history.history['loss'], "limegreen",  marker =".")
-        ax2.plot(history.history['val_loss'],"orangered" ,  marker =".")
-        ax2.set_title('Cost of '+ model.name +'\n'+ "Configuration: " + model_conf)
-        ax2.set_ylabel('Cost')
-        ax2.set_xlabel('Epoch')
-        ax2.legend(['train', 'validation'], loc='best')
-        ax2.grid(linestyle = '--', linewidth = 0.5)
-        ax2.set_ylim(ymin=0)
-        if y_log == True:
-            ax2.set_yscale('log')
-            ax2.set_ylim(None)
-        
-        # Creates box indicating minimum validation cost value
-        xmin = np.argmin(history.history['val_loss'])
-        ymin = min(history.history['val_loss'])
-        text2= "Val. Cost:{:.3f}".format(ymin)
-        bbox_props2 = dict(boxstyle="round,pad=0.3", fc="w", ec="k", lw = 0.5)
-        arrowprops2 = dict(arrowstyle="->",connectionstyle="arc3,rad=-0.3")
-        kw2 = dict(xycoords='data',textcoords="offset points",
-                   arrowprops=arrowprops2, bbox=bbox_props2, ha="right", va="center")
-        ax2.annotate(text2, xy=(xmin, ymin), xytext=(70, 35), **kw2)
-        
-        plt.tight_layout()
-
+    return corr
 
 """
 #Just some tests for cpu and ram bar with multiprocessing
@@ -481,5 +392,169 @@ def usage(bar):
         bar.n = psutil.cpu_percent() if bar.desc == 'cpu%' else psutil.virtual_memory().percent
         bar.refresh()
         sleep(0.5)
+        
+        
+        
+def categorical_get_dummies(df: pd.DataFrame, categorical_columns = []):
+    colunas_one_hot = {}
+    for coluna in categorical_columns:
+        codes, uniques = pd.factorize(df[coluna].unique())
+        colunas_one_hot[coluna] = {"uniques": uniques, "codes":codes}
+        df[coluna] = df[coluna].replace(colunas_one_hot[coluna]["uniques"], colunas_one_hot[coluna]["codes"])
+        print(coluna)
+    df = pd.get_dummies(data=df, columns=categorical_columns)
 """
 
+def categorical_get_dummies(df: pd.DataFrame, categorical_columns: list): #-> pd.DataFrame:
+    """
+    One-hot encode the categorical columns of a dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The input dataframe.
+    categorical_columns : list
+        A list of the categorical column names.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe with the categorical columns one-hot encoded.
+    dict
+        A dictionary with the unique values and codes for each categorical column.
+    """
+
+    # Check input types
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input 'df' must be a pandas DataFrame.")
+    if not isinstance(categorical_columns, list):
+        raise TypeError("Input 'categorical_columns' must be a list of column names.")
+
+    # Create dictionary of unique values and codes for each categorical column
+    colunas_one_hot = {coluna: {"uniques": df[coluna].unique(), "codes": pd.factorize(df[coluna].unique())[0]} 
+                       for coluna in categorical_columns}
+
+    # Replace categorical values with codes and one-hot encode the columns
+    for coluna in categorical_columns:
+        df[coluna] = df[coluna].replace(colunas_one_hot[coluna]["uniques"], colunas_one_hot[coluna]["codes"])
+    df = pd.get_dummies(data=df, columns=categorical_columns)
+
+    return df, colunas_one_hot
+
+
+def encode_labels(df: pd.DataFrame, label: str) -> pd.DataFrame:
+    """
+    Encodes the labels in a DataFrame using LabelEncoder.
+
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The DataFrame containing the label column to be encoded.
+    label : str
+        The name of the column containing the labels to be encoded.
+
+    Returns:
+    --------
+    pandas DataFrame
+        The original DataFrame with the label column encoded.
+    LabelEncoder
+        The fitted LabelEncoder object.
+    """
+
+    # Importing the LabelEncoder class from the scikit-learn library
+    from sklearn.preprocessing import LabelEncoder
+    
+    le = LabelEncoder()
+    le.fit(df[label].values)
+    
+    # Encoding the label column using the fitted LabelEncoder
+    df[label] = le.transform(df[label].values)
+    # Returning the DataFrame with the encoded label column
+    return df, le
+
+def apply_smotenc(df: pd.DataFrame, label: str, categorical_indices: list = [],sampling_strategy: str = "auto", random_state: int = 0) -> pd.DataFrame:
+    """
+    This function applies the SMOTENC (Synthetic Minority Over-sampling Technique for Nominal and Continuous features)
+    algorithm to oversample a dataset with imbalanced classes. SMOTENC is a variation of the SMOTE algorithm that can
+    handle datasets with both numerical and categorical features.
+
+    Parameters:
+        - df (pd.DataFrame): a Pandas DataFrame containing the dataset to be oversampled.
+        - label (str): the name of the column containing the target variable.
+        - categorical_indices (list): a list containing the indices of the columns in `df` that contain categorical
+                                      variables. Default: [].
+        - sampling_strategy (str): the sampling strategy to use when generating the synthetic samples. Default: "auto".
+        - random_state (int): the random seed to use for reproducibility. Default: 0.
+
+    Returns:
+        - df_smote (pd.DataFrame): a new Pandas DataFrame containing the original data plus the synthetic minority class
+                                   samples generated by the SMOTENC algorithm.
+
+    """
+    from imblearn.over_sampling import SMOTENC
+    
+    #check if the value sent in the sampling_strategy parameter is valid
+    valid_strategies = ["minority", "not minority", "not majority", "all", "auto"]
+    if sampling_strategy not in valid_strategies:
+        raise ValueError("Invalid sampling strategy.")
+    
+    # Make a copy of the input dataframe and separate the target variable column
+    X = df.copy()
+    X = X.drop(columns=[label])
+    y = df[label].copy()
+    
+    # Apply the SMOTENC algorithm to oversample the dataset
+    print(f"Started SMOTENC; size of df - {df.size} ")
+    smote_nc = SMOTENC(categorical_features=categorical_indices, random_state=random_state, sampling_strategy=sampling_strategy)
+    X_resampled, y_resampled = smote_nc.fit_resample(X, y)
+    
+    # Create a new dataframe with the oversampled dataset
+    df_smote = pd.DataFrame(X_resampled, columns=X.columns)
+    df_smote[label] = y_resampled
+    
+    # Print the size of the original and oversampled datasets, and return the oversampled dataset
+    print(f"finished SMOTENC; size of df - {df_smote.size}")
+    return df_smote
+
+
+def apply_smotenc_bigdata(df: pd.DataFrame, label: str, categorical_indices: list = [], random_state: int = 0) -> pd.DataFrame:
+    """
+    This function applies the SMOTENC (Synthetic Minority Over-sampling Technique for Nominal and Continuous features)
+    algorithm to oversample a dataset with imbalanced classes. SMOTENC is a variation of the SMOTE algorithm that can
+    handle datasets with both numerical and categorical features. This function is doing a cicle to oversample the data 
+    with the minor class. Because otherwise the SMOTENC algorithm is not working with big data.
+    
+
+    Parameters:
+        - df (pd.DataFrame): a Pandas DataFrame containing the dataset to be oversampled.
+        - label (str): the name of the column containing the target variable.
+        - categorical_indices (list): a list containing the indices of the columns in `df` that contain categorical
+                                      variables. Default: [].
+        - random_state (int): the random seed to use for reproducibility. Default: 0.
+
+    Returns:
+        - df_smote (pd.DataFrame): a new Pandas DataFrame containing the original data plus the synthetic minority class
+                                   samples generated by the SMOTENC algorithm.
+
+    """
+    from imblearn.over_sampling import SMOTENC
+    # Make a copy of the input dataframe and separate the target variable column
+    X_resampled = df.copy()
+    X_resampled = X_resampled.drop(columns=[label,"Attack_label"])
+    y_resampled = df[label].copy()
+    
+    # Apply the SMOTENC algorithm to oversample the dataset
+    print(f"Started SMOTENC; size of df - {df.size} ")
+    
+    # Apply the SMOTENC algorithm to oversample the dataset
+    smote_nc = SMOTENC(categorical_features=categorical_indices, random_state=random_state,sampling_strategy="minority")
+
+    for labels in np.unique(y_resampled):
+        X_resampled, y_resampled = smote_nc.fit_resample(X_resampled, y_resampled)
+    
+    df_smote = pd.DataFrame(X_resampled, columns=X_resampled.columns)
+    df_smote[label]=y_resampled
+    
+    # Print the size of the original and oversampled datasets, and return the oversampled dataset
+    print(f"finished SMOTENC; size of df - {df_smote.size}")
+    return df_smote
