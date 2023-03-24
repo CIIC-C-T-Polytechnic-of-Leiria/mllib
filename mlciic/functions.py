@@ -145,8 +145,6 @@ def start_measures():
     --------
     start_time: float
         The start time of the measurements
-    tracemalloc_obj: tracemalloc.TraceMalloc
-        The `tracemalloc` object that is used for measuring memory usage
     """
     try:
         tracemalloc_obj = tracemalloc.start()
@@ -155,9 +153,9 @@ def start_measures():
         print(f"An error occurred while starting memory and time measures: {e}")
         return None, None
     
-    return start_time, tracemalloc_obj
+    return start_time
 
-def stop_measures(start_time, tracemalloc_obj):
+def stop_measures(start_time):
     """
     Stops the memory and time measures
     
@@ -165,8 +163,6 @@ def stop_measures(start_time, tracemalloc_obj):
     -----------
     start_time: float
         The start time of the measurements
-    tracemalloc_obj: tracemalloc.TraceMalloc
-        The `tracemalloc` object that is used for measuring memory usage
     
     Returns:
     --------
@@ -176,15 +172,17 @@ def stop_measures(start_time, tracemalloc_obj):
         The elapsed time in seconds
     """
     try:
-        memory_usage = tracemalloc_obj.get_traced_memory()
-        tracemalloc_obj.stop()
+        memory_usage = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
         elapsed_time = time.time() - start_time
     except Exception as e:
         print(f"An error occurred while stopping memory and time measures: {e}")
         return None, None
     
+    print("----- Time and memory usage -----")
     print("(current, peak)", memory_usage)
     print("--- {:.2f} segundos ---".format(elapsed_time))
+    print("------------------------------------")
     return memory_usage, elapsed_time
 
 
