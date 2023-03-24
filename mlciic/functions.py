@@ -540,7 +540,7 @@ def apply_smotenc_bigdata(df: pd.DataFrame, label: str, categorical_indices: lis
     from imblearn.over_sampling import SMOTENC
     # Make a copy of the input dataframe and separate the target variable column
     X_resampled = df.copy()
-    X_resampled = X_resampled.drop(columns=[label,"Attack_label"])
+    X_resampled = X_resampled.drop(columns=[label])
     y_resampled = df[label].copy()
     
     # Apply the SMOTENC algorithm to oversample the dataset
