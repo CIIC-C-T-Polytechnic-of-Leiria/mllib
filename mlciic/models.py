@@ -4,6 +4,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from mlciic import functions
+from im
 
 def beforeModel(df: pd.DataFrame, drop_columns: list,label: str, one_hot_encoder = True, label_encoder = True, valid_indices = False, test_size = 0.2, standard_scaler = True, smote = True, random_state = 1):
     """
