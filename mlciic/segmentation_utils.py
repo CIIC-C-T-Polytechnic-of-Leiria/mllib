@@ -1,3 +1,15 @@
+#-------------------------------------------------------------------------------
+# Utilitarian functions for segmentation tasks, file conversion, 
+# video processing, etc.
+#-------------------------------------------------------------------------------
+
+#------------
+# To Do List:
+#------------
+# 1. Translate to English
+# 2. Add Docstrings
+# 3. Test functions
+
 import numpy as np
 from PIL import Image, ImageDraw
 import base64
@@ -6,6 +18,12 @@ import glob
 import os
 import io
 import cv2
+from tdqm import tqdm
+from rasterio.features import shapes  # gets shapes and values of regions 
+from rasterio import Affine           # affine planar transformations
+from shapely import wkt                     # working with WKT files
+from shapely.geometry import shape, MultiPolygon
+from shapely.affinity import scale
 
 def labelme_shapes_to_label(img_shape, shapes):
     """
@@ -39,6 +57,57 @@ def polygons_to_mask(img_shape, polygons):
     ImageDraw.Draw(mask).polygon(xy=xy, outline=1, fill=1)
     mask = np.array(mask, dtype=bool)
     return mask
+
+def polygons_to_wkt(mask_paths, x_scale = 1, y_scale = 1):
+    """
+    Converts list of masks imgs to WKT string and rescales geometry, if 
+    necessary 
+    """
+    wkt_list = list()
+    for img_path in mask_paths:
+        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        polygon = mask_to_polygons(img)
+        plgn_scld = scale(polygon, xfact=x_scale, yfact=y_scale, origin = (0,0))
+        wkt_polygon = wkt.dumps(plgn_scld, rounding_precision = 0)
+        wkt_list.append(wkt_polygon)
+    wkt_to_file = '\n'.join(wkt_list)
+    
+    return wkt_to_file
+
+
+def mask_to_polygons(mask_img):
+    """
+    Converts segmentation mask to shapely multipolygon.
+
+    Adapted from: https://rocreguant.com/convert-a-mask-into-a-polygon-for-images-using-shapely-and-rasterio/1786/
+    """
+    all_polygons = list()
+    
+    for shp, value in shapes(source=mask_img.astype(np.uint8),mask=(mask_img>0), 
+                             transform=Affine(1.0, 0, 0, 0, 1.0, 0)):
+        all_polygons.append(shape(shp))
+
+    all_polygons = MultiPolygon(all_polygons)
+
+    # Sometimes buffer() converts a simple Multipolygon to just a Polygon,
+    # need to keep it a Multipolygon throughout
+    if not all_polygons.is_valid:
+        all_polygons = all_polygons.buffer(0)
+        if all_polygons.type == 'Polygon':
+            all_polygons = MultiPolygon([all_polygons])
+    
+    return all_polygons
+
+def msks_paths_to_polygon_list(msks_paths):
+    """
+    Converts segmentation masks paths list to list of shapely multipolygons.
+    """
+    pol_list = list()
+    for img_path in msks_paths:
+        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        polygon = mask_to_polygons(img)
+        pol_list.append(polygon)
+    return pol_list
 
 def img_b64_to_array(img_b64):
     """
@@ -168,3 +237,77 @@ def vid2frame(vid_caminho, frames_dir, altura_imgs = 128, largura_imgs = 128, ve
             frame_num += 1
     print('Conversão concluída')
     return (altura_orig, largura_orig)
+
+
+def wkt2masc(ficheiro_wkt, caminho_imagens, dims_orig, altura, largura):
+    """ 
+    Converte ficheiros WKT em máscaras de segmentacão.
+
+    Parametros:
+        caminho_wkt {str} -- 
+        caminho_imagens {str} -- pasta de destino das mascaras 
+        dims_orig {tuple} -- 
+        frac_treino {float} --
+        altura {int} -- 
+        largura {int} --
+
+    Devolve:
+        Cria imagens PNG das máscaras
+    """
+
+    if not os.path.exists(caminho_imagens):
+        os.makedirs(caminho_imagens)
+        # elimina ficheiros do diretório, caso existam
+    for filename in os.listdir(caminho_imagens):
+        if filename.endswith(".png"):
+            file_path = os.path.join(caminho_imagens, filename)
+            os.remove(file_path)
+
+    # abre ficheiro wkt
+    ficheiro = open(ficheiro_wkt, 'r')
+    num_linhas = len(ficheiro.readlines())
+    cnt = 0
+    print(
+        f"""
+    {'-'*38}
+    # \033[1mPropriedades das máscaras resultantes\033[0m
+    # Largura: {largura}, Altura: {altura}
+    # Número de máscaras a criar: {num_linhas}
+    {'-'*38}
+    """
+    )
+
+    pbar = tqdm(total=num_linhas)
+    # processa ficheiro linha a linha
+    with open(ficheiro_wkt) as ficheiro:
+        for linhas in ficheiro:
+            # extrai numeros da linha
+            pontos = [int(s) for s in re.findall('[0-9]+', linhas)]
+            # cria mascara vazia
+            # masc = np.zeros((altura, largura), dtype=np.uint8)
+            masc = np.zeros((dims_orig[0], dims_orig[1]))
+            # cria array c/ número de pontos do poligono com 2 colunas (x,y)
+            arr = np.zeros((int(len(pontos)/2), 2))
+
+            # preenche array 'arr'
+            j = 0
+            for i in range(0, int(len(pontos)/2)):
+                arr[i, 0] = int(pontos[j])
+                arr[i, 1] = int(pontos[j+1])
+                j += 2
+            # desenha máscara
+            cv2.drawContours(image=masc,
+                             contours=[arr.astype(np.int32)],
+                             contourIdx=-1,
+                             color=(255, 255, 255),
+                             thickness=-1,  # se > 0, grossura do contorno; se -1, preenche objecto
+                             lineType=cv2.LINE_AA)
+            # redimensiona frames
+            masc_red = cv2.resize(masc, (largura, altura))
+            cv2.imwrite(caminho_imagens + "/masc_" +
+                        str(cnt).zfill(6) + ".png", masc_red)
+            cnt += 1
+            pbar.update(1)
+
+    pbar.close()
+    ficheiro.close()
