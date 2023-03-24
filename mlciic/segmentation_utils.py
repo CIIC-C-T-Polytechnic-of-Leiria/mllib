@@ -21,7 +21,7 @@ import cv2
 from tdqm import tqdm
 from rasterio.features import shapes  # gets shapes and values of regions 
 from rasterio import Affine           # affine planar transformations
-from shapely import wkt                     # working with WKT files
+from shapely import wkt               # working with WKT files
 from shapely.geometry import shape, MultiPolygon
 from shapely.affinity import scale
 
@@ -238,76 +238,72 @@ def vid2frame(vid_caminho, frames_dir, altura_imgs = 128, largura_imgs = 128, ve
     print('Conversão concluída')
     return (altura_orig, largura_orig)
 
-
-def wkt2masc(ficheiro_wkt, caminho_imagens, dims_orig, altura, largura):
+def wkt2masc(wkt_file, images_path, orig_dims, height, width):
     """ 
-    Converte ficheiros WKT em máscaras de segmentacão.
-
-    Parametros:
-        caminho_wkt {str} -- 
-        caminho_imagens {str} -- pasta de destino das mascaras 
-        dims_orig {tuple} -- 
-        frac_treino {float} --
-        altura {int} -- 
-        largura {int} --
-
-    Devolve:
-        Cria imagens PNG das máscaras
+    Converts WKT files to segmentation masks.
+    Parameters:
+        wkt_file {str} -- path to the WKT file
+        images_path {str} -- path to the folder where the masks will be saved
+        orig_dims {tuple} -- original dimensions of the masks
+        height {int} -- desired height of the masks
+        width {int} -- desired width of the masks
+    Returns:
+        Creates PNG images of the masks
     """
 
-    if not os.path.exists(caminho_imagens):
-        os.makedirs(caminho_imagens)
-        # elimina ficheiros do diretório, caso existam
-    for filename in os.listdir(caminho_imagens):
+    if not os.path.exists(images_path):
+        os.makedirs(images_path)
+
+    # delete files in the folder, if any
+    for filename in os.listdir(images_path):
         if filename.endswith(".png"):
-            file_path = os.path.join(caminho_imagens, filename)
+            file_path = os.path.join(images_path, filename)
             os.remove(file_path)
 
-    # abre ficheiro wkt
-    ficheiro = open(ficheiro_wkt, 'r')
-    num_linhas = len(ficheiro.readlines())
+    # open WKT file
+    wkt = open(wkt_file, 'r')
+    num_lines = len(wkt.readlines())
     cnt = 0
-    print(
-        f"""
+    print(f"""
     {'-'*38}
-    # \033[1mPropriedades das máscaras resultantes\033[0m
-    # Largura: {largura}, Altura: {altura}
-    # Número de máscaras a criar: {num_linhas}
+    # \033[1mProperties of the resulting masks\033[0m
+    # Width: {width}, Height: {height}
+    # Number of masks to create: {num_lines}
     {'-'*38}
-    """
-    )
+    """)
 
-    pbar = tqdm(total=num_linhas)
-    # processa ficheiro linha a linha
-    with open(ficheiro_wkt) as ficheiro:
-        for linhas in ficheiro:
-            # extrai numeros da linha
-            pontos = [int(s) for s in re.findall('[0-9]+', linhas)]
-            # cria mascara vazia
-            # masc = np.zeros((altura, largura), dtype=np.uint8)
-            masc = np.zeros((dims_orig[0], dims_orig[1]))
-            # cria array c/ número de pontos do poligono com 2 colunas (x,y)
-            arr = np.zeros((int(len(pontos)/2), 2))
+    pbar = tqdm(total=num_lines)
 
-            # preenche array 'arr'
+    # process each line of the WKT file
+    with open(wkt_file) as wkt:
+        for line in wkt:
+            # extract numbers from the line
+            points = [int(s) for s in re.findall('[0-9]+', line)]
+            # create empty mask
+            # mask = np.zeros((height, width), dtype=np.uint8)
+            mask = np.zeros(orig_dims)
+            # create array with polygon points, with 2 columns (x,y)
+            arr = np.zeros((int(len(points)/2), 2))
+
+            # fill array 'arr'
             j = 0
-            for i in range(0, int(len(pontos)/2)):
-                arr[i, 0] = int(pontos[j])
-                arr[i, 1] = int(pontos[j+1])
+            for i in range(0, int(len(points)/2)):
+                arr[i, 0] = int(points[j])
+                arr[i, 1] = int(points[j+1])
                 j += 2
-            # desenha máscara
-            cv2.drawContours(image=masc,
+            # draw mask
+            cv2.drawContours(image=mask,
                              contours=[arr.astype(np.int32)],
                              contourIdx=-1,
                              color=(255, 255, 255),
-                             thickness=-1,  # se > 0, grossura do contorno; se -1, preenche objecto
+                             thickness=-1,  # if > 0, thickness of the contour; if -1, fill object
                              lineType=cv2.LINE_AA)
-            # redimensiona frames
-            masc_red = cv2.resize(masc, (largura, altura))
-            cv2.imwrite(caminho_imagens + "/masc_" +
-                        str(cnt).zfill(6) + ".png", masc_red)
+            # resize frames
+            mask_resized = cv2.resize(mask, (width, height))
+            cv2.imwrite(images_path + "/mask_" +
+                        str(cnt).zfill(6) + ".png", mask_resized)
             cnt += 1
             pbar.update(1)
 
     pbar.close()
-    ficheiro.close()
+    wkt.close()
